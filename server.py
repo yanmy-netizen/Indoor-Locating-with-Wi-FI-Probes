@@ -9,7 +9,11 @@ pymysql.install_as_MySQLdb() # 这句？
 # initialize the positions of wifi sniffer
 p = np.array([[0, 0], [10, 0], [0, 10]])
 # set mapping from mac of wifi sniffer to index
-mmac2idx = {'5e:cf:7f:29:c5:91': 0, '5e:cf:7f:10:f3:78': 0, '5e:cf:7f:10:f3:79': 2} # 三个探针
+mmac2idx = {'14:6b:9c:f3:f1:61': 0, '5e:cf:7f:10:f3:78': 1, '5e:cf:7f:10:f3:79': 2} # 三个探针
+
+# 14:6b:9c:f3:f1:61 是第一个配置好的 id: 00f3f161
+
+
 # set the mac of smart phone
 targetMac = 'a4:56:02:61:7f:57' # 目标检测
 # initialize the distances to wifi sniffer
