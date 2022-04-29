@@ -72,7 +72,7 @@ def register():
         db.session.commit()
     return 'welcome'
 
-@app.route('/getJson', methods=['Post']) # 从数据结构获取数据
+@app.route('/getJson', methods=['Post']) # 从数据结构获取数据, 可以不新建一个Web Server 
 def getJson():
     data = request.form['data'] # 已经是json了，就不用dump了
     jdict = json.loads(data)
