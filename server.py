@@ -1,26 +1,30 @@
+from cv2 import rectify3Collinear
 import numpy as np
 from flask import Flask, request
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import pymysql
+import json
 
 pymysql.install_as_MySQLdb() # 这句？
 
 # initialize the positions of wifi sniffer
-p = np.array([[0, 0], [10, 0], [0, 10]])
+p = np.array([[8.4, 0], [0, 3.8], [8.4, 6]]) #
 # set mapping from mac of wifi sniffer to index
-mmac2idx = {'14:6b:9c:f3:f1:61': 0, '5e:cf:7f:10:f3:78': 1, '5e:cf:7f:10:f3:79': 2} # 三个探针
+mmac2idx = {'14:6b:9c:f3:eb:23': 0, '14:6b:9c:f4:03:e9': 1, '14:6b:9c:f4:04:1b': 2} # 三个探针
 
-# 14:6b:9c:f3:f1:61 是第一个配置好的 id: 00f3f161
-
+# 14:6b:9c:f3:eb:23 是第一个配置好的
+# 14:6b:9c:f4:03:e9 是第二个
+# 14:6b:9c:f4:04:1b 是第三个
 
 # set the mac of smart phone
-targetMac = 'a4:56:02:61:7f:57' # 目标检测
+targetMac = 'fc:66:cf:43:ae:d9' # 目标检测
+# 0e:fb:b5:41:8a:a6
 # initialize the distances to wifi sniffer
 targetPos = np.array([5, 5])
 r = np.array([np.linalg.norm(targetPos - p[0]), np.linalg.norm(targetPos - p[1]), np.linalg.norm(targetPos - p[2])])
 # mark whether all distances are recalculated
-mark = [False, False, False]
+mark = [False, False, False] # 三个都更新一次，则更新一次位置
 receivedTime = ''
 
 app = Flask(__name__)
@@ -29,9 +33,9 @@ app = Flask(__name__)
 class Config(object):
     """配置参数"""
     # 设置连接数据库的URL
-    user = 'newuser'
-    password = 'password'
-    database = 'dev_to'
+    user = 'root'
+    password = 'Gaojiang9'
+    database = 'WiFi_probe_db'
     app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://%s:%s@127.0.0.1:3306/%s' % (user, password, database)
 
     # 设置sqlalchemy自动更跟踪数据库
@@ -60,27 +64,36 @@ class Pos(db.Model):
     x = db.Column(db.Float)
     y = db.Column(db.Float)
 
-
 @app.route('/', methods=['Post']) # 用Post
+def hello():
+    print('hello')
+    return 'welcome'
+
+@app.route('/getJson', methods=['Post']) # 用Post
 def register():
     global mark, targetPos, receivedTime
-    print(request.headers)
-    receivedJson = request.get_json()
+    #print(request.headers)
+    receivedJson = request.form['data'] # 已经是json了，就不用dump了
+    receivedJson = json.loads(receivedJson)
+    #print(receivedJson)
     parseJson(receivedJson)
-    # if mark[0] and mark[1] and mark[2]
-    if True:
+    if mark[0] and mark[1] and mark[2]:
+    # if True:
         targetPos = trilateration(p[0], p[1], p[2], r[0], r[1], r[2])
         mark[0], mark[1], mark[2] = False, False, False
+        print('received',receivedTime)
         datalist = [Pos(time=datetime.strptime(receivedTime, "%c"), x=targetPos[0], y=targetPos[1])]
         db.session.add_all(datalist)
         db.session.commit()
     return 'welcome'
 
+'''
 @app.route('/getJson', methods=['Post']) # 从数据结构获取数据, 可以不新建一个Web Server 
 def getJson():
     data = request.form['data'] # 已经是json了，就不用dump了
     jdict = json.loads(data)
     return jdict
+'''
 
 def parseJson(receivedJson):
     global r, mark, receivedTime
@@ -89,19 +102,16 @@ def parseJson(receivedJson):
     idx = mmac2idx[mmac]
     for i in receivedJson["data"]:
         if i['mac'] == targetMac:
-            dis, num = 0, 0
-            for j in i['rssi']:
-                dis += rssi2dis(j)
-                num += 1
-            if num > 0:
-                dis /= num
-                r[idx] = dis
-                mark[idx] = True
-                receivedTime = receivedJson['time']
+            j = i['rssi']
+            dis = rssi2dis(j)
+            print('idx:',idx,'dis:',dis,'rssi:',j)
+            r[idx] = dis
+            mark[idx] = True
+            receivedTime = receivedJson['time']
 
 
 def rssi2dis(rssi):
-    return 1.0
+    return pow(10,(abs(float(rssi))-51.345)/20.01)
 
 
 # args:
@@ -127,9 +137,9 @@ def trilateration(p1, p2, p3, r1, r2, r3):
 
 if __name__ == '__main__':
     # 删除所有表
-    db.drop_all()
+    # db.drop_all()
 
     # 创建所有表
-    db.create_all()
+    # db.create_all()
 
-    app.run(port=8888, debug=True)
+    app.run("0.0.0.0",port=8888, debug=True)
